@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+*.h3.zip
+*.mp4
+*.mov
+*.mkv
+*.webm
+input/
+output/
+temp/
+*.part
