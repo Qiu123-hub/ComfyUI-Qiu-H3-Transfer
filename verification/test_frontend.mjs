@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const extension=fs.readFileSync(path.join(root,'web/h3_transfer.js'),'utf8');
 for(const base of ['https://host.example/extensions/H3/h3_transfer.js',
@@ -12,7 +13,9 @@ for(const base of ['https://host.example/extensions/H3/h3_transfer.js',
 }
 // A data module exercises the shipped pure JS without a bundler/package.json.
 const source=fs.readFileSync(path.join(root,'web/transfer_core.js'),'utf8');
-const {encode,decode,parseProfile,applyReceipt,fetchPackage,managedZipUrl}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const moduleUrl = text => 'data:text/javascript;base64,' + Buffer.from(text).toString('base64');
+const coreUrl = moduleUrl(source);
+const {encode,decode,parseProfile,applyReceipt,fetchPackage,managedZipUrl}=await import(coreUrl);
 const bytes=Uint8Array.from({length:10000},(_,i)=>i%256);
 assert.deepEqual(decode(encode(bytes)),bytes);
 assert.throws(()=>decode('wrong prefix'));
@@ -101,4 +104,63 @@ const broken=fixture(),old=JSON.stringify([...broken.map]);
 broken.getNodeById(700).widgets.find(w=>w.name==='video').callback=()=>{throw new Error('simulated callback failure');};
 assert.throws(()=>applyReceipt(broken,receipt),/回滚/);
 assert.equal(JSON.stringify([...broken.map]),old);
-console.log('Frontend: 40.2 MiB clipboard round trip, ZIP 404 fallback and import state checks passed.');
+
+// Exercise the RunningHub button with a ZIP made by the actual Python sender.
+const generated = spawnSync(process.env.H3_TEST_PYTHON || 'python', ['-X', 'utf8', '-c', `
+import base64, sys, tempfile
+from pathlib import Path
+sys.path.insert(0, 'verification')
+from test_bridge import fixture, core
+with tempfile.TemporaryDirectory(dir='verification') as tmp:
+    inp, out, temp, workflow = fixture(Path(tmp))
+    result = core.create_package(workflow, {}, (True, [str(out/'handoff.mp4')]),
+        lambda name: inp/name, [out, temp], out/'packages')
+    print(base64.b64encode(Path(result['path']).read_bytes()).decode())
+`], {cwd: root, encoding: 'utf8'});
+assert.equal(generated.status, 0, generated.error?.message || generated.stderr);
+const zip = Buffer.from(generated.stdout.trim(), 'base64');
+const rhSource = fs.readFileSync(path.join(root, 'web/runninghub_import.js'), 'utf8');
+const rhUrl = moduleUrl(rhSource.replace("'./transfer_core.js'", JSON.stringify(coreUrl)));
+const {importOnRunningHub} = await import(rhUrl);
+
+const rhGraph = fixture();
+const alerts = [], uploads = [];
+let registration;
+globalThis.window = {location: {hostname: 'www.runninghub.ai'}, alert: message => alerts.push(message)};
+Object.defineProperty(globalThis, 'navigator', {configurable: true,
+  value: {clipboard: {readText: async () => encode(zip)}}});
+globalThis.h3Test = {app: {registerExtension: ext => {registration = ext;}}, api: {fetchApi: async (url, options) => {
+  if (url === '/h3_transfer/import') return new Response(null, {status: 403});
+  assert.equal(url, '/upload/image');
+  assert.equal(options.method, 'POST');
+  assert.equal(options.body.get('type'), 'input');
+  const file = options.body.get('image');
+  uploads.push(await file.text());
+  return Response.json({name: file.name, subfolder: 'cloud-assets'});
+}}};
+await import(moduleUrl(extension.replace("import {app} from '../../scripts/app.js';", 'const {app} = globalThis.h3Test;')
+  .replace("import {api} from '../../scripts/api.js';", 'const {api} = globalThis.h3Test;')
+  .replace("'./transfer_core.js'", JSON.stringify(coreUrl))
+  .replace("'./runninghub_import.js'", JSON.stringify(rhUrl))));
+const receiver = rhGraph.getNodeById(900);
+receiver.graph = rhGraph;
+receiver.addWidget = (type, name, value, callback) => {
+  const widget = {type, name, value, callback};
+  receiver.widgets.push(widget);
+  return widget;
+};
+registration.nodeCreated(receiver);
+await receiver.widgets.find(w => w.name === '粘贴并填写二采输入').callback();
+assert.deepEqual(uploads, ['source-video-exact-bytes', 'final-audio-video', 'png-file-content']);
+assert.match(alerts.at(-1), /二采输入已填好/);
+assert.match(rhGraph.getNodeById(700).widgets.find(w => w.name === 'video').value, /^cloud-assets\/h3-.*\.mp4$/);
+assert.equal(rhGraph.getNodeById(248).widgets.find(w => w.name === 'value').value, '旧UI提示词');
+
+const corrupt = Buffer.from(zip);
+const frame = corrupt.indexOf(Buffer.from('final-audio-video'));
+assert(frame >= 0);
+corrupt[frame] ^= 1;
+const unexpectedUpload = async () => assert.fail('Invalid ZIP or mapping must not upload media');
+await assert.rejects(importOnRunningHub(corrupt, unexpectedUpload, () => {}), /素材内容校验失败/);
+await assert.rejects(importOnRunningHub(zip, unexpectedUpload, () => {throw new Error('bad mapping');}), /bad mapping/);
+console.log('Frontend: 40.2 MiB clipboard, download fallback, RunningHub receiver button and pre-upload checks passed.');

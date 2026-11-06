@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-qiu-h3-transfer"
-version = "0.1.3"
+version = "0.1.4"
 description = "Transfer H3 first-pass inputs, reference media, and rendered video between ComfyUI instances."
 readme = "README.md"
 requires-python = ">=3.10"

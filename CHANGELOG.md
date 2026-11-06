@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Import H3 packages on RunningHub through its standard media upload route when the receiver is used to fill the canvas.
+- Check package hashes and all target widgets before uploading and apply the settings after the required media are available.
+
 ## 0.1.3
 
 - Raise the clipboard package limit to 128 MiB with block-based Base64 for older browsers.

@@ -2,7 +2,7 @@
 
 **本地一采 → 云端二采，一次交接输入、素材和一采成品。**
 
-适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，接收节点导入交接包并填写二采工作流。当前版本为 0.1.3。
+适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，接收节点导入交接包并填写二采工作流。当前版本为 0.1.4。
 
 ## 安装
 
@@ -12,7 +12,7 @@
 git clone https://github.com/Qiu123-hub/ComfyUI-Qiu-H3-Transfer.git
 ```
 
-也可以下载 [v0.1.3 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.3.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。**发送端和接收端都需要更新。**
+也可以下载 [v0.1.4 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.4.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。RunningHub 接收端更新到 v0.1.4 后，可以继续导入 v0.1.2 和 v0.1.3 发送节点生成的原包。
 
 从旧名 `ComfyUI-H3-Transfer` 升级时，先将旧插件目录移到 `custom_nodes` 外，保证只加载一份。节点类名保持兼容，已有工作流仍可使用。
 
@@ -65,7 +65,9 @@ python -m pip install -r requirements.txt
 
 更新发送端后重新生成交接包，ZIP 会进入本次任务结果。按钮会尝试交接接口、ComfyUI 输出路径和任务产物链接。下载失败时也可以从任务结果获取 ZIP。任务产物的登记方式参考 [RunningHub RVC 节点](https://github.com/RH-RunningHub/ComfyUI_RH_RVC/blob/main/rvc_comfy_nodes.py)。
 
-RunningHub 接收端需要加载插件的 Web 扩展和 `/h3_transfer/import` 接口。导入会显示处理中状态，接口不可用或文件超出平台上限时会显示对应错误。
+RunningHub 的示例接收节点通过平台素材入口上传原包中启用的参考图、原参考视频和一采成品。素材校验和目标控件检查在上传前完成，全部所需素材上传后统一填写工作流。请使用发送节点生成的原始 ZIP 或交接码。标准上传入口的使用方式参照 [RunningHub 自家节点的上传实现](https://github.com/RH-RunningHub/ComfyUI_RH_RVC/blob/main/js/rh_rvc_zip_upload.js)。
+
+在 RunningHub 通过按钮填写画布时，`import_id` 留空。需要在图中连接 `import_status` 的工作流继续使用服务器交接接口。
 
 素材只在用户主动导入时上传到当前接收端 ComfyUI；插件不使用第三方中转服务。
 
@@ -94,9 +96,9 @@ python -m unittest discover -s verification -p test_bridge.py
 node verification/test_frontend.mjs
 ```
 
-13 项 Python 测试覆盖归档校验、素材去重、续跑记录和真实回环 HTTP 接口。用 40.2 MiB 的合成交接包检查过下载与导入。前端测试覆盖同等大小的交接码往返、HTTP 404 下载回退和填写工作流输入。
+13 项 Python 测试覆盖归档校验、素材去重、续跑记录和真实回环 HTTP 接口。用 40.2 MiB 的合成交接包检查过下载与导入。前端测试覆盖交接码往返、下载回退、使用 Python 发送节点原包模拟 RunningHub 接收，以及损坏素材和错误映射的上传前校验。
 
-配套工作流做过 ComfyUI 前端导入检查，VHS 小样已生成 24fps 视频。0.1.3 的 RunningHub 下载回退在模拟环境验证，仍待 RunningHub 实际任务验收。
+配套工作流做过 ComfyUI 前端导入检查，VHS 小样已生成 24fps 视频。RunningHub 实际任务仍待验收。
 
 ## 许可
 

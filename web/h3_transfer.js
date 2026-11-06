@@ -2,6 +2,7 @@ import {app} from '../../scripts/app.js';
 import {api} from '../../scripts/api.js';
 import {encode, decode, parseProfile, applyReceipt, CLIPBOARD_LIMIT, CLIPBOARD_TOO_LARGE,
   ZIP_LIMIT, fetchPackage, managedZipUrl} from './transfer_core.js';
+import {importOnRunningHub, isRunningHub} from './runninghub_import.js';
 
 const value=(node,name)=>node.widgets?.find(w=>w.name===name)?.value;
 const setValue=(node,name,newValue)=>{const w=node.widgets?.find(w=>w.name===name);if(w)w.value=newValue;};
@@ -42,6 +43,7 @@ function pasteDialog(onSubmit){
 }
 async function responseData(response){
   if (response.status === 413) throw new Error('接收端拒绝了文件大小（HTTP 413）。请检查平台上传上限。');
+  if (response.status === 403) throw new Error('接收端拒绝了交接导入请求（HTTP 403）。');
   if (response.status === 404) throw new Error('接收端交接导入接口不可用（HTTP 404）。请确认接收端已加载新版插件。');
   if(!response.ok){let message='请求失败';try{message=(await response.json()).error || message;}catch{}
     throw new Error(`${message}（HTTP ${response.status}；确认本端已安装H3交接插件）`);}
@@ -137,18 +139,33 @@ app.registerExtension({
         if (url) cloudArtifact = {id, url};
       };
     }else{
+      let importing = false;
       async function receive(bytes){
         if ((bytes.size ?? bytes.byteLength) > ZIP_LIMIT) throw new Error('交接 ZIP 超过 512 MiB。');
-        // Parse the mapping before uploading; applyReceipt checks every target
-        // widget before making the first graph change.
+        if (importing) throw new Error('接收节点正在导入，请稍候。');
         const mapping=parseProfile(value(node,'mapping_json'));
-        const response=await responseData(await api.fetchApi('/h3_transfer/import',{
-          method:'POST',headers:{'Content-Type':'application/octet-stream'},body:bytes}));
-        const receipt=await response.json();
-        const result=applyReceipt(node.graph || app.graph,receipt,mapping);
-        setValue(node,'import_id',receipt.import_id);
-        node.title=`H3接收：已填入 ${result.enabled_images} 图 + 2视频 + 提示词`;
-        show('二采输入已填好，参考图开关也已同步。检查二采分辨率后正常点击运行即可。');
+        const graph = node.graph || app.graph;
+        // A connected status output still requires a receipt from the Python node.
+        const managed = isRunningHub(window.location.hostname) && !node.outputs?.some(port => port.links?.length);
+        importing = true;
+        try {
+          let receipt;
+          if (managed) {
+            receipt = await importOnRunningHub(bytes, (path, options) => api.fetchApi(path, options),
+              draft => applyReceipt(graph, draft, mapping, {validateOnly: true}));
+          } else {
+            const response = await responseData(await api.fetchApi('/h3_transfer/import', {
+              method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: bytes,
+            }));
+            receipt = await response.json();
+          }
+          const result = applyReceipt(graph, receipt, mapping);
+          setValue(node, 'import_id', receipt.import_id);
+          node.title = `H3接收：已填入 ${result.enabled_images} 图 + 2视频 + 提示词`;
+          show('二采输入已填好，参考图开关也已同步。检查二采分辨率后正常点击运行即可。');
+        } finally {
+          importing = false;
+        }
       }
       button(node,'粘贴并填写二采输入',async()=>{
         try{const text=await navigator.clipboard.readText();await receive(decode(text));}

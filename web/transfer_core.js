@@ -128,7 +128,7 @@ export function parseProfile(text='{}') {
   return result;
 }
 
-export function applyReceipt(graph,receipt,mapping={}) {
+export function applyReceipt(graph,receipt,mapping={}, {validateOnly = false} = {}) {
   const conf={...DEFAULT_PROFILE,...mapping};
   if(!receipt || !Array.isArray(receipt.reference_images) || receipt.reference_images.length!==6 ||
      typeof receipt.prompt!=='string' || !receipt.reference_video?.path || !receipt.first_pass_video?.path)
@@ -161,6 +161,7 @@ export function applyReceipt(graph,receipt,mapping={}) {
   plan(node(conf.reference_short_edge,'PrimitiveInt'),'value',receipt.common_settings.reference_short_edge);
   const resize=node(conf.reference_video_resize,'ImageScaleToTotalPixels');
   for(const [name,value] of Object.entries(receipt.common_settings.reference_video_resize))plan(resize,name,value);
+  if (validateOnly) return;
   // All mappings are checked before the first mutation. Roll back if a custom
   // node callback fails; do not leave a half-filled graph ready to queue.
   try{
