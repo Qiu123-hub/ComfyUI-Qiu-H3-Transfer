@@ -34,7 +34,9 @@ class H3TransferSend:
             [folder_paths.get_output_directory(),folder_paths.get_temp_directory()],
             package_dir(),conf,include_previous)
         public={k:v for k,v in result.items() if k!='path'}
-        return {'ui':{'h3_transfer':[public]},'result':(result['package_id'],)}
+        artifact = {'filename': Path(result['path']).name, 'subfolder': 'h3_transfer', 'type': 'output'}
+        # RunningHub's output processor collects files from the standard images list.
+        return {'ui': {'h3_transfer': [public], 'images': [artifact]}, 'result': (result['package_id'],)}
 
 
 class H3TransferReceive:

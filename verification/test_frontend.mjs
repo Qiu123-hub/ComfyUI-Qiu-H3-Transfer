@@ -12,12 +12,55 @@ for(const base of ['https://host.example/extensions/H3/h3_transfer.js',
 }
 // A data module exercises the shipped pure JS without a bundler/package.json.
 const source=fs.readFileSync(path.join(root,'web/transfer_core.js'),'utf8');
-const {encode,decode,parseProfile,applyReceipt}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const {encode,decode,parseProfile,applyReceipt,fetchPackage,managedZipUrl}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const bytes=Uint8Array.from({length:10000},(_,i)=>i%256);
 assert.deepEqual(decode(encode(bytes)),bytes);
 assert.throws(()=>decode('wrong prefix'));
 assert.throws(()=>decode('H3TRANSFER1:invalid?'));
 assert.throws(()=>parseProfile('{"images":[1]}'));
+
+// Match the reported package size and exercise the non-native browser path.
+const large = new Uint8Array(Math.round(40.2 * 1024 * 1024));
+for (let i = 0; i < large.length; i++) large[i] = (i ^ (i >>> 11)) & 255;
+const expected = Buffer.from(large.buffer).toString('base64');
+const nativeEncode = Object.getOwnPropertyDescriptor(Uint8Array.prototype, 'toBase64');
+const nativeDecode = Object.getOwnPropertyDescriptor(Uint8Array, 'fromBase64');
+try {
+  if (nativeEncode) delete Uint8Array.prototype.toBase64;
+  if (nativeDecode) delete Uint8Array.fromBase64;
+  const text = encode(large);
+  assert.equal(text, 'H3TRANSFER1:' + expected);
+  assert.equal(Buffer.compare(Buffer.from(decode(text).buffer), Buffer.from(large.buffer)), 0);
+} finally {
+  if (nativeEncode) Object.defineProperty(Uint8Array.prototype, 'toBase64', nativeEncode);
+  if (nativeDecode) Object.defineProperty(Uint8Array, 'fromBase64', nativeDecode);
+}
+
+const id = 'c'.repeat(32);
+const zipBytes = Uint8Array.of(80, 75, 3, 4, 11, 22);
+const cloudUrl = 'https://assets.example/run/package.zip';
+const output = {images: [{filename: `${id}.h3_managed.zip`, cos_url: cloudUrl}]};
+const response = () => new Response(zipBytes);
+const missing = () => new Response(null, {status: 404});
+assert.equal(managedZipUrl(output, id), cloudUrl);
+assert.equal(managedZipUrl(output, 'b'.repeat(32)), null);
+assert.equal(managedZipUrl({images: [{filename: `${id}.zip`, cos_url: 'javascript:alert(1)'}]}, id), null);
+const fromView = await fetchPackage({id, size: zipBytes.length, nodeId: 900,
+  fetchApi: async path => path.startsWith('/view?') ? response() : missing()});
+assert.deepEqual(new Uint8Array(await fromView.arrayBuffer()), zipBytes);
+const fromHistory = await fetchPackage({id, size: zipBytes.length, nodeId: 900,
+  fetchApi: async path => path.startsWith('/history?')
+    ? Response.json({task: {outputs: {900: output}}}) : missing(),
+  fetchCloud: async (url, options) => {
+    assert.equal(url, cloudUrl);
+    assert.equal(options.credentials, 'omit');
+    return response();
+  }});
+assert.deepEqual(new Uint8Array(await fromHistory.arrayBuffer()), zipBytes);
+await assert.rejects(fetchPackage({id, nodeId: 900, cloudUrl,
+  fetchApi: async path => path.startsWith('/view?') ? new Response('<html>') : missing(),
+  fetchCloud: async () => {throw new TypeError('CORS');}}), error =>
+  error.downloadUrl === cloudUrl && error.message.includes('响应不是 ZIP 文件') && error.message.includes('HTTP 404'));
 
 const workflow=JSON.parse(fs.readFileSync(path.join(root,'examples/stage2_cloud_receiver.json'),'utf8'));
 function fixture(){
@@ -58,4 +101,4 @@ const broken=fixture(),old=JSON.stringify([...broken.map]);
 broken.getNodeById(700).widgets.find(w=>w.name==='video').callback=()=>{throw new Error('simulated callback failure');};
 assert.throws(()=>applyReceipt(broken,receipt),/回滚/);
 assert.equal(JSON.stringify([...broken.map]),old);
-console.log('Frontend: clipboard round trip, six-slot state sync, unchanged sampler, preflight and rollback passed.');
+console.log('Frontend: 40.2 MiB clipboard round trip, ZIP 404 fallback and import state checks passed.');

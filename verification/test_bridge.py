@@ -164,18 +164,29 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.temp.cleanup()
 
     async def test_nodes_and_upload_download_round_trip(self):
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+
+        # The real HTTP handlers must handle an archive above the old 32 MiB cap.
+        with (self.out/'handoff.mp4').open('r+b') as video:
+            video.truncate(round(40.2 * 1024 * 1024))
         sender=self.plugin.NODE_CLASS_MAPPINGS['H3TransferSend']()
         result=sender.send((True,[str(self.out/'handoff.mp4')]),extra_pnginfo={'workflow':self.workflow})
         item=result['ui']['h3_transfer'][0];self.assertNotIn('path',item)
-        download=await self.routes.download(SimpleNamespace(match_info={'package_id':item['package_id']}))
-        self.assertEqual(download.status,200)
-        data=(self.out/'h3_transfer'/(item['package_id']+'.h3.zip')).read_bytes()
-        class Content:
-            async def iter_chunked(self,size):
-                for i in range(0,len(data),size):yield data[i:i+size]
-        request=SimpleNamespace(headers={'Origin':'http://localhost:8188'},host='localhost:8188',content=Content())
-        response=await self.routes.upload(request);self.assertEqual(response.status,200,response.text)
-        receipt=json.loads(response.text)
+        self.assertEqual(result['ui']['images'], [{
+            'filename': item['package_id'] + '.h3.zip', 'subfolder': 'h3_transfer', 'type': 'output',
+        }])
+        app = web.Application()
+        app.add_routes(self.fakeserver.PromptServer.instance.routes)
+        async with TestClient(TestServer(app)) as client:
+            download = await client.get('/h3_transfer/package/' + item['package_id'])
+            self.assertEqual(download.status, 200)
+            self.assertIn('attachment', download.headers['Content-Disposition'])
+            data = await download.read()
+            self.assertEqual(data, (self.out/'h3_transfer'/(item['package_id']+'.h3.zip')).read_bytes())
+            response = await client.post('/h3_transfer/import', data=data)
+            self.assertEqual(response.status, 200, await response.text())
+            receipt = await response.json()
         receiver=self.plugin.NODE_CLASS_MAPPINGS['H3TransferReceive']()
         self.assertIn('已接收',receiver.receive(receipt['import_id'])[0])
         self.assertEqual(list((self.tmp/'h3_transfer_upload').iterdir()),[])

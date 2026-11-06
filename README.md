@@ -2,7 +2,7 @@
 
 **本地一采 → 云端二采，一次交接输入、素材和一采成品。**
 
-适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，接收节点导入交接包并填写二采工作流。版本：0.1.2。
+适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，接收节点导入交接包并填写二采工作流。当前版本为 0.1.3。
 
 ## 安装
 
@@ -12,7 +12,7 @@
 git clone https://github.com/Qiu123-hub/ComfyUI-Qiu-H3-Transfer.git
 ```
 
-也可以下载 [v0.1.2 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.2.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。**本地和接收端都需要安装。**
+也可以下载 [v0.1.3 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.3.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。**发送端和接收端都需要更新。**
 
 从旧名 `ComfyUI-H3-Transfer` 升级时，先将旧插件目录移到 `custom_nodes` 外，保证只加载一份。节点类名保持兼容，已有工作流仍可使用。
 
@@ -39,7 +39,7 @@ python -m pip install -r requirements.txt
 ## 使用
 
 1. 导入本地示例，选择原参考视频、启用的参考图及提示词，正常运行一采。
-2. #271 保存视频后，发送节点自动生成 `output/h3_transfer/<随机ID>.h3.zip`。
+2. #271 保存视频后，发送节点自动生成 `output/h3_transfer/<随机ID>.h3.zip`，并登记到本次任务的输出中。
 3. 点击发送节点的“复制本次交接码（含素材）”。大文件点击“下载交接ZIP”。
 4. 在接收端导入二采示例，点击“粘贴并填写二采输入”或“导入交接ZIP”。
 5. 检查二采分辨率和采样设置，正常运行二采。
@@ -56,14 +56,16 @@ python -m pip install -r requirements.txt
 
 | 方式 | 限制 |
 | --- | --- |
-| 复制 / 粘贴完整交接码 | ZIP 不超过32MiB；Base64文本会更大 |
-| 下载 / 导入交接ZIP | ZIP 不超过512MiB；平台可能有更小的上传限制 |
+| 复制 / 粘贴完整交接码 | ZIP 不超过 128 MiB，Base64 文本约增大三分之一 |
+| 下载 / 导入交接ZIP | ZIP 不超过 512 MiB，实际上传还受平台限制 |
 
 浏览器无法访问剪贴板时会提供手动文本框。生成结束后改变素材或提示词不会改写已有交接包，应使用与新输入匹配的一采输出重新生成。
 
 ## RunningHub
 
-RunningHub 需要安装或收录该插件，并允许加载 Python 节点、Web 扩展及 `/h3_transfer/` 上传下载接口。上传工作流 JSON 不会自动安装插件。**本仓库尚未完成 RunningHub 端到端验收。**
+更新发送端后重新生成交接包，ZIP 会进入本次任务结果。按钮会尝试交接接口、ComfyUI 输出路径和任务产物链接。下载失败时也可以从任务结果获取 ZIP。任务产物的登记方式参考 [RunningHub RVC 节点](https://github.com/RH-RunningHub/ComfyUI_RH_RVC/blob/main/rvc_comfy_nodes.py)。
+
+RunningHub 接收端需要加载插件的 Web 扩展和 `/h3_transfer/import` 接口。导入会显示处理中状态，接口不可用或文件超出平台上限时会显示对应错误。
 
 素材只在用户主动导入时上传到当前接收端 ComfyUI；插件不使用第三方中转服务。
 
@@ -92,9 +94,9 @@ python -m unittest discover -s verification -p test_bridge.py
 node verification/test_frontend.mjs
 ```
 
-13项 Python 测试覆盖字节往返、素材去重、禁用槽位、续跑记录、文件及归档校验、上传下载接口；前端测试覆盖剪贴板、六槽位状态、二采参数保留、错误映射预检及回滚。测试使用合成文件和模拟 ComfyUI 对象。
+13 项 Python 测试覆盖归档校验、素材去重、续跑记录和真实回环 HTTP 接口。用 40.2 MiB 的合成交接包检查过下载与导入。前端测试覆盖同等大小的交接码往返、HTTP 404 下载回退和填写工作流输入。
 
-配套工作流做过真实 ComfyUI 前端导入检查，一采前端API导出确认帧率连线及唯一输出；VHS 小样实际生成过24fps视频。完整 H3 推理和 RunningHub 交接仍需按目标环境验证。
+配套工作流做过 ComfyUI 前端导入检查，VHS 小样已生成 24fps 视频。0.1.3 的 RunningHub 下载回退在模拟环境验证，仍待 RunningHub 实际任务验收。
 
 ## 许可
 
