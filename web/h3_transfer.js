@@ -3,6 +3,7 @@ import {api} from '../../scripts/api.js';
 import {encode, decode, parseProfile, applyReceipt, CLIPBOARD_LIMIT, CLIPBOARD_TOO_LARGE,
   ZIP_LIMIT, fetchPackage, managedZipUrl} from './transfer_core.js';
 import {importOnRunningHub, isRunningHub} from './runninghub_import.js';
+import {addRunningHubSender} from './runninghub_send.js';
 
 const value=(node,name)=>node.widgets?.find(w=>w.name===name)?.value;
 const setValue=(node,name,newValue)=>{const w=node.widgets?.find(w=>w.name===name);if(w)w.value=newValue;};
@@ -73,7 +74,7 @@ function button(node,label,action){
     try{await action();}catch(error){showError(error);}
     finally{busy=false;w.name=old;node.graph?.setDirtyCanvas(true,true);}
   });
-  w.options={...(w.options || {}),serialize:false};w.serializeValue=()=>undefined;
+  w.options={...(w.options || {}),serialize:false};w.serialize=false;w.serializeValue=()=>undefined;
 }
 
 app.registerExtension({
@@ -83,6 +84,9 @@ app.registerExtension({
     const kind=node.comfyClass || node.type;
     if(!['H3TransferSend','H3TransferReceive'].includes(kind))return;
     if(kind==='H3TransferSend'){
+      if (['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
+        addRunningHubSender(node, api, button);
+      }
       let cloudArtifact;
       function download(id) {
         return fetchPackage({id, size: node.properties?.h3_package_bytes, nodeId: node.id,

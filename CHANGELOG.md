@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Submit and save RunningHub second-pass results from the local sender using the paired API workflow template.
+- Choose 1.0 to 2.0 megapixels in steps of 0.1 on the sender node. The default is 1.5.
+- Include the paired API workflow profile with cleared media selections and prompt.
+
 ## 0.1.4
 
 - Import H3 packages on RunningHub through its standard media upload route when the receiver is used to fill the canvas.

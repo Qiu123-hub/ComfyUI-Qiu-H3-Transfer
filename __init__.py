@@ -1,5 +1,5 @@
 from .nodes import H3TransferSend,H3TransferReceive
-from . import routes  # register only within the ComfyUI server
+from . import routes, runninghub_routes  # register only within the ComfyUI server
 
 NODE_CLASS_MAPPINGS={'H3TransferSend':H3TransferSend,'H3TransferReceive':H3TransferReceive}
 NODE_DISPLAY_NAME_MAPPINGS={'H3TransferSend':'Qiu H3 发送交接包（本地一采）',

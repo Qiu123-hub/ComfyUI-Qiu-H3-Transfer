@@ -1,8 +1,14 @@
 # ComfyUI-Qiu-H3-Transfer
 
+## 本地一键提交 RunningHub 二采
+
+在本机用 `localhost` 或 `127.0.0.1` 打开 ComfyUI。原发送节点会显示「二采设置」和「发送并运行二采」。第一次打开「二采设置」，粘贴 RunningHub API Key，并选择平时使用的云端显存档位。仓库和 v0.1.5 安装包已包含配套的 `runninghub_profile.json`，对应 RunningHub 工作流 `2117626984829288449`。
+
+一采打包后，在发送节点选择「二采分辨率（百万像素）」，默认 1.5，可在 1.0 到 2.0 之间按 0.1 选择。点击「发送并运行二采」会提交云端任务，成片保存到本机 `output/H3_stage2`。同一交接包和分辨率会继续查询已有任务或打开已有成片。选择另一个分辨率会提交一笔新任务。
+
 **本地一采 → 云端二采，一次交接输入、素材和一采成品。**
 
-适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，接收节点导入交接包并填写二采工作流。当前版本为 0.1.4。
+适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，支持直接提交 RunningHub 二采，也支持通过接收节点导入交接包。当前版本为 0.1.5。
 
 ## 安装
 
@@ -12,7 +18,7 @@
 git clone https://github.com/Qiu123-hub/ComfyUI-Qiu-H3-Transfer.git
 ```
 
-也可以下载 [v0.1.4 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.4.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。RunningHub 接收端更新到 v0.1.4 后，可以继续导入 v0.1.2 和 v0.1.3 发送节点生成的原包。
+也可以下载 [v0.1.5 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.5.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。本地 API 提交方式只需更新本地发送端，使用已经配置好的云端二采工作流。
 
 从旧名 `ComfyUI-H3-Transfer` 升级时，先将旧插件目录移到 `custom_nodes` 外，保证只加载一份。节点类名保持兼容，已有工作流仍可使用。
 
@@ -69,7 +75,7 @@ RunningHub 的示例接收节点通过平台素材入口上传原包中启用的
 
 在 RunningHub 通过按钮填写画布时，`import_id` 留空。需要在图中连接 `import_status` 的工作流继续使用服务器交接接口。
 
-素材只在用户主动导入时上传到当前接收端 ComfyUI；插件不使用第三方中转服务。
+点击「发送并运行二采」时，素材通过 RunningHub 官方 API 上传并提交任务。使用接收节点时，素材在用户主动导入后上传到当前接收端 ComfyUI。
 
 ## 节点映射
 
@@ -98,7 +104,7 @@ node verification/test_frontend.mjs
 
 13 项 Python 测试覆盖归档校验、素材去重、续跑记录和真实回环 HTTP 接口。用 40.2 MiB 的合成交接包检查过下载与导入。前端测试覆盖交接码往返、下载回退、使用 Python 发送节点原包模拟 RunningHub 接收，以及损坏素材和错误映射的上传前校验。
 
-配套工作流做过 ComfyUI 前端导入检查，VHS 小样已生成 24fps 视频。RunningHub 实际任务仍待验收。
+配套工作流做过 ComfyUI 前端导入检查，VHS 小样已生成 24fps 视频。完整交接包通过官方 API 提交 RunningHub 二采已由用户实测出片。v0.1.5 节点按钮完成了素材传递、分辨率、任务复用及本地保存的模拟验证，节点按钮的实机验收待完成。
 
 ## 许可
 

@@ -141,7 +141,8 @@ globalThis.h3Test = {app: {registerExtension: ext => {registration = ext;}}, api
 await import(moduleUrl(extension.replace("import {app} from '../../scripts/app.js';", 'const {app} = globalThis.h3Test;')
   .replace("import {api} from '../../scripts/api.js';", 'const {api} = globalThis.h3Test;')
   .replace("'./transfer_core.js'", JSON.stringify(coreUrl))
-  .replace("'./runninghub_import.js'", JSON.stringify(rhUrl))));
+  .replace("'./runninghub_import.js'", JSON.stringify(rhUrl))
+  .replace("'./runninghub_send.js'", JSON.stringify(moduleUrl(fs.readFileSync(path.join(root,'web/runninghub_send.js'),'utf8'))))));
 const receiver = rhGraph.getNodeById(900);
 receiver.graph = rhGraph;
 receiver.addWidget = (type, name, value, callback) => {
