@@ -3,7 +3,7 @@ import {api} from '../../scripts/api.js';
 import {encode, decode, parseProfile, applyReceipt, CLIPBOARD_LIMIT, CLIPBOARD_TOO_LARGE,
   ZIP_LIMIT, fetchPackage, managedZipUrl} from './transfer_core.js';
 import {importOnRunningHub, isRunningHub} from './runninghub_import.js';
-import {addRunningHubSender} from './runninghub_send.js';
+import {addCloudSender} from './runninghub_send.js';
 
 const value=(node,name)=>node.widgets?.find(w=>w.name===name)?.value;
 const setValue=(node,name,newValue)=>{const w=node.widgets?.find(w=>w.name===name);if(w)w.value=newValue;};
@@ -85,7 +85,7 @@ app.registerExtension({
     if(!['H3TransferSend','H3TransferReceive'].includes(kind))return;
     if(kind==='H3TransferSend'){
       if (['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
-        addRunningHubSender(node, api, button);
+        addCloudSender(node, api, button);
       }
       let cloudArtifact;
       function download(id) {

@@ -1,4 +1,5 @@
 """RunningHub task API for the local H3 sender."""
+from contextlib import contextmanager
 import hashlib
 import http.client
 import json
@@ -88,10 +89,13 @@ def read_handoff(archive):
     return manifest, selected
 
 
-def upload_asset(key, archive, name):
+@contextmanager
+def asset_form(archive, name, fields=()):
     boundary = uuid4().hex
     content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
-    prefix = (f"--{boundary}\r\n"
+    prefix = "".join(f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"\r\n\r\n{value}\r\n'
+                     for field, value in fields)
+    prefix = (prefix + f"--{boundary}\r\n"
               f'Content-Disposition: form-data; name="file"; filename="{Path(name).name}"\r\n'
               f"Content-Type: {content_type}\r\n\r\n").encode("ascii")
     suffix = f"\r\n--{boundary}--\r\n".encode("ascii")
@@ -103,11 +107,17 @@ def upload_asset(key, archive, name):
             yield from iter(lambda: asset.read(1024 * 1024), b"")
             yield suffix
 
-        data = request("/openapi/v2/media/upload/binary", {
-            "Authorization": f"Bearer {key}",
+        yield {
             "Content-Type": f"multipart/form-data; boundary={boundary}",
             "Content-Length": str(len(prefix) + size + len(suffix)),
-        }, parts()).get("data")
+        }, parts()
+
+
+def upload_asset(key, archive, name):
+    with asset_form(archive, name) as (headers, body):
+        data = request("/openapi/v2/media/upload/binary", {
+            **headers, "Authorization": f"Bearer {key}",
+        }, body).get("data")
     filename = (data.get("filename") or data.get("fileName")) if isinstance(data, dict) else None
     if not isinstance(filename, str) or not filename.strip():
         raise ValueError("上传接口没有返回可用于加载视频的文件名。")
@@ -177,15 +187,23 @@ def wait_for_video(key, task_id):
 
 def download_video(key, task_id, output_dir):
     url, extension = wait_for_video(key, task_id)
-    filename = f"RunningHub-{task_id}.{extension}"
+    return save_video(url, f"RunningHub-{task_id}.{extension}", output_dir)
+
+
+def save_video(url, filename, output_dir, *, mp4=False):
     target = output_dir / filename
     output_dir.mkdir(parents=True, exist_ok=True)
     partial = target.with_suffix(f".{uuid4().hex}.part")
     try:
         with urlopen(url, timeout=90) as response, partial.open("xb") as destination:
+            if mp4:
+                header = response.read(12)
+                if header[4:8] != b"ftyp":
+                    raise ValueError("平台返回的文件无法识别为 MP4。")
+                destination.write(header)
             shutil.copyfileobj(response, destination, 1024 * 1024)
         if not partial.stat().st_size:
-            raise ValueError("RunningHub 返回的成片文件为空。")
+            raise ValueError("平台返回的成片文件为空。")
         os.replace(partial, target)
     finally:
         partial.unlink(missing_ok=True)

@@ -1,14 +1,16 @@
 # ComfyUI-Qiu-H3-Transfer
 
-## 本地一键提交 RunningHub 二采
+## 本地一键提交云端二采
 
-在本机用 `localhost` 或 `127.0.0.1` 打开 ComfyUI。原发送节点会显示「二采设置」和「发送并运行二采」。第一次打开「二采设置」，粘贴 RunningHub API Key，并选择平时使用的云端显存档位。仓库和 v0.1.5 安装包已包含配套的 `runninghub_profile.json`，对应 RunningHub 工作流 `2117626984829288449`。
+在本机用 `localhost` 或 `127.0.0.1` 打开 ComfyUI。在原发送节点上选择「二采平台」，打开「二采设置」，粘贴对应平台的 API Key。RunningHub 可选显存档位，配套的 `runninghub_profile.json` 对应工作流 `2117626984829288449`。晨羽智云使用「minimaxH3人物替换（仅二采）」工作流 `wf_1169ddeaa4bd8726b2a1`，默认版本为 `wfr_8d402727f3232b923969`。
 
 一采打包后，在发送节点选择「二采分辨率（百万像素）」，默认 1.5，可在 1.0 到 2.0 之间按 0.1 选择。点击「发送并运行二采」会提交云端任务，成片保存到本机 `output/H3_stage2`。同一交接包和分辨率会继续查询已有任务或打开已有成片。选择另一个分辨率会提交一笔新任务。
 
+晨羽二采的六个图槽按一采位置填写。已启用的图直接使用交接包素材，空槽共用安装包里的 `chenyu_default_reference.png`。一采启用了六张图时直接传六张。升级后已保存的晨羽 API Key 可继续使用，工作流版本切换到上述默认版本。可以在「二采设置」填写该工作流之后发布的新版本 ID。
+
 **本地一采 → 云端二采，一次交接输入、素材和一采成品。**
 
-适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，支持直接提交 RunningHub 二采，也支持通过接收节点导入交接包。当前版本为 0.1.5。
+适用于 MiniMax H3 / 海螺 H3 的两阶段视频工作流。发送节点在一采视频保存后打包本次输入，支持直接提交 RunningHub 或晨羽智云二采，也支持通过接收节点导入交接包。当前版本为 0.1.9。
 
 ## 安装
 
@@ -18,7 +20,7 @@
 git clone https://github.com/Qiu123-hub/ComfyUI-Qiu-H3-Transfer.git
 ```
 
-也可以下载 [v0.1.5 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.5.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。本地 API 提交方式只需更新本地发送端，使用已经配置好的云端二采工作流。
+也可以下载 [v0.1.9 安装包](dist/ComfyUI-Qiu-H3-Transfer-v0.1.9.zip)，解压到 `ComfyUI/custom_nodes/ComfyUI-Qiu-H3-Transfer/`，确保 `__init__.py` 位于该目录，重启 ComfyUI 并刷新网页。
 
 从旧名 `ComfyUI-H3-Transfer` 升级时，先将旧插件目录移到 `custom_nodes` 外，保证只加载一份。节点类名保持兼容，已有工作流仍可使用。
 
@@ -75,7 +77,7 @@ RunningHub 的示例接收节点通过平台素材入口上传原包中启用的
 
 在 RunningHub 通过按钮填写画布时，`import_id` 留空。需要在图中连接 `import_status` 的工作流继续使用服务器交接接口。
 
-点击「发送并运行二采」时，素材通过 RunningHub 官方 API 上传并提交任务。使用接收节点时，素材在用户主动导入后上传到当前接收端 ComfyUI。
+点击「发送并运行二采」时，素材通过所选平台的 API 上传并提交任务。使用接收节点时，素材在用户主动导入后上传到当前接收端 ComfyUI。
 
 ## 节点映射
 

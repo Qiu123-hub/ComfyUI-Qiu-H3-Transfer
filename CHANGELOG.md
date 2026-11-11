@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.9
+
+- Submit to the tested 晨羽智云 second-pass workflow with all six reference-image inputs.
+- Preserve each enabled reference slot and upload the bundled default image once when any slots are empty.
+
+## 0.1.8
+
+- Make the first reference image optional on 晨羽智云 workflow revisions that expose its switch.
+- Preserve the reference settings for previous revisions that expose switches for images 2–6.
+
+## 0.1.7
+
+- Synchronize the five optional reference-image switches on the corrected 晨羽智云 workflow.
+- Check for missing reference images before uploading to legacy 晨羽智云 revisions.
+
+## 0.1.6
+
+- Add 晨羽智云 as a second cloud provider on the local sender with a configurable workflow revision.
+- Upload handoff media as temporary assets, submit the published workflow, and save the second-pass video locally.
+
 ## 0.1.5
 
 - Submit and save RunningHub second-pass results from the local sender using the paired API workflow template.
